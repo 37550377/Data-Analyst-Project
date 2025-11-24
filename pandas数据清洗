@@ -1,0 +1,73 @@
+"""
+项目名称：中国GDP前十的城市时间轴可视化（1992-2020）
+功能描述：将kaggle获得的中国各城市GPD图表数据，用pandas清洗，并算出同比增长率
+数据来源：kaggle下载
+"""
+import pandas as pd
+import numpy as np
+df_csv = pd.read_csv("D:/kaggle/ChinasGDPinProvinceEn.csv",encoding="utf-8")
+"""
+# 复制表数据，取第一行除年份外的GDP数值，并将科学计数法转化成整数
+data = df_csv.copy().iloc[0][1:].astype(float)
+
+# 查看本行GDP最大的数值和其所对应的城市
+# print(data.max(),data.idxmax())
+
+# 用argsort，[::-1]翻转，[:10]取前十GDP下标
+top10_GDP_idx = data.argsort()[::-1][:10]
+# print(top10_GDP_idx)
+
+# 取前十GDP数值
+top10_GDP_data = data.iloc[top10_GDP_idx]
+# 转换成列表
+top10_GDP_data = top10_GDP_data.tolist()
+# print(top10_GDP_data)
+
+# 取前十GDP的城市数据
+top10_cities_data = df_csv.columns[1:][top10_GDP_idx]
+# 转换成列表
+top10_cities_data = top10_cities_data.tolist()
+# print(top10_cities_data)
+"""
+# 基于以上取第一行数据做一个函数，方便复用
+data = df_csv.copy()
+def bar_data(x):
+    '''
+    x: 取第几行的数据
+    :return:返回绘图需要的行函数和列函数
+    也就是x_data城市数据，y_data对应的GDP
+    '''
+    data_one = data.iloc[x][1:].astype(int)
+    top10_GDP_idx = data_one.argsort()[::-1][:10]
+    # 取前十GDP数值# 转换成列表
+    top10_GDP_data = data_one.iloc[top10_GDP_idx].tolist()
+      # 取前十GDP的城市数据# 转换成列表
+    top10_cities_data = df_csv.columns[1:][top10_GDP_idx].tolist()
+    x_data, y_data = top10_cities_data, top10_GDP_data
+    return x_data, y_data
+
+def line_data(z):
+    if z == 0:
+        return None
+
+    ord_data = data.iloc[z-1,1:]
+        # print(ord_data)
+    new_data = data.iloc[z,1:]
+        # print(new_data)
+    # 获取前十GDP数据的下标，argsort默认从小到大
+    top10_GDP_idx = new_data.argsort()[::-1][:10]
+    growth_rate = (new_data - ord_data) / ord_data * 100
+    growth_rate = growth_rate.round(2)
+    growth_rate = growth_rate.iloc[top10_GDP_idx].tolist()
+    return growth_rate[::-1]
+
+# for y in range(0,data.shape[0]):
+#     y_data1 = line_data(y)
+#     x_data = bar_data(y)[0]
+#     y_data = bar_data(y)[1]
+#     print(y_data1)
+#     print(y_data)
+#     print(x_data)
+# 取年份列表
+year_list = data.iloc[:,0].tolist()
+# print(year_list)

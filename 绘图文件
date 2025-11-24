@@ -1,0 +1,94 @@
+from pyecharts.options import *
+from pyecharts.charts import Timeline,Bar,Line,Grid
+from pyecharts.globals import ThemeType
+from pd_object import * #或者 from np_object import *
+# Timeline("theme":ThemeType.类型)设置时间轴主题需要导包
+timeline = Timeline({"theme": ThemeType.ROMA})
+# y是参数，代表其行数下标
+for y in range(0,data.shape[0]):
+    bar = Bar()
+    # 获取横坐标和纵坐标数据
+    x_data = bar_data(y)[0][::-1]
+    y_data = bar_data(y)[1][::-1]
+    bar.add_xaxis(x_data)
+    bar.add_yaxis("GDP(亿)",y_data)
+    bar.set_global_opts(
+        # 解决x轴不能显示所有年份问题
+        xaxis_opts=AxisOpts(
+            axislabel_opts=LabelOpts(
+                # 取消间隔
+                interval=0,
+                # 改字体大小
+                font_size=14,
+                is_show=True,
+            )),
+        yaxis_opts=AxisOpts(
+            name="GDP(亿)",
+            position="left",
+            is_show=True
+        ),
+        # 标题及其位置设置
+        title_opts=TitleOpts(
+            title=f"{year_list[y]}年中国GDP前10的城市",
+            pos_left="center",
+            pos_bottom="90%"
+        ),
+        # 工具箱设置
+        toolbox_opts=ToolboxOpts(is_show=True),
+        # # 视觉映射
+        # visualmap_opts=VisualMapOpts(
+        #     is_show=True,
+        #     max_=max(y_data),
+        #     min_=min(y_data),
+        # ),
+        legend_opts=LegendOpts(pos_left="35%", pos_right="center"),
+    )
+    grid = Grid()
+    grid.add(bar, grid_opts=GridOpts(pos_left="10%", pos_right="10%"))
+    if y !=0 :
+        line = Line()
+        l_y_data = line_data(y)
+        line.add_xaxis(x_data)
+        line.add_yaxis("增长率",l_y_data,
+                       # itemstyle_opts=ItemStyleOpts(
+                       #     color="#ff0000",
+                       # )
+                       )
+        line.set_global_opts(
+            xaxis_opts=AxisOpts(is_show=False),
+            yaxis_opts=AxisOpts(
+                name="增长率(%)",
+                position="right",
+                is_show=True
+            ),
+            legend_opts=LegendOpts(pos_right="35%", pos_left="center"),
+        )
+        line.set_series_opts(
+            itemstyle_opts=ItemStyleOpts(
+                color="#ff0000"
+            ),
+            linestyle_opts=LineStyleOpts(
+                width=5
+            )
+        )
+        grid.add(line,grid_opts=GridOpts(pos_left="10%",pos_right="10%"))
+        # 加入timeline轴
+    timeline.add(grid, str(year_list[y]))
+    timeline.add_schema(
+        # 间隔
+        play_interval=1000,
+        # 开启时间轴
+        is_timeline_show=True,
+        # 循环播放关闭
+        is_loop_play=False,
+        # 自动播放
+        is_auto_play=True,
+        # 解决timelin轴不能显示所有年份的问题
+        label_opts=LabelOpts(
+            interval=0,
+            font_size=10,
+            # 旋转角度
+            rotate=45
+            )
+        )
+timeline.render("1992-2020年中国各省前十GDP排行.html")

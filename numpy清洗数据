@@ -1,0 +1,85 @@
+项目名称：中国GDP前十的城市时间轴可视化（1992-2020）
+功能描述：将kaggle获得的中国各城市GPD图表数据，用numpy清洗
+数据来源：kaggle下载
+"""
+# 切片除年份外的第一行数据
+data1 = data[0,1:]
+# print(data1)
+# [ 710  411 .......402]
+
+# 需要将这个数据进行排序并找到对应城市
+# argsort 取从小到大排序的下标，[::-1]从大到小,[:10]取前10个，得到一个数组
+top10_GDP_idx = np.argsort(data1)[::-1][:10]
+print(top10_GDP_idx)
+# [18 14  9  5 10 15  2 22  8 16]GDP最高是18的位置，第二是9的位置，以此类推
+
+# columns[1:]取表的标头除第0个，就取到了所有城市,再把它转列表
+cities_data = df_csv.columns[1:].tolist()
+# print(cities_data)
+# ['Beijing', 'Tianjin', .... ,'Xinjiang']
+
+top10_cities_data = []
+for i in top10_GDP_idx:
+    top10_cities_data.append(cities_data[i])
+print(top10_cities_data)
+# 取GDP前十城市排序并组成列表
+# ['Guangdong', 'Shandong', 'Jiangsu',....... 'Hubei']
+# 离散型切片直接用数组切
+top10_GDP_data = data1[top10_GDP_idx]
+# 转列表
+y_data = top10_GDP_data.tolist()
+# print(y_data)
+"""
+
+# 基于以上步骤要重复多次，所以设计个函数
+def bar_data(x):
+    '''
+    x: 取第几行的数据
+    :return:返回绘图需要的行函数和列函数
+    也就是x_data城市数据，y_data对应的GDP
+    '''
+    # 创建空列表接收GDP排名前十的城市
+    x_data = []
+    # 获取某年所有GPD数据
+    data_iloc = data[x, 1:]
+    # 获取前十GDP数据的下标，argsort默认从小到大
+    top10_GDP_idx = np.argsort(data_iloc)[::-1][:10]
+    # 获取城市数据
+    city_data = df_csv.columns[1:].tolist()
+    # 将GDP前十的城市存到x_data里
+    for i in top10_GDP_idx:
+        x_data.append(city_data[i])
+    # 取到某年的前十GPD的数据
+    top10_GDP_data = data_iloc[ top10_GDP_idx]
+    # 依然是数组形式要转列表
+    y_data = top10_GDP_data.tolist()
+    return x_data, y_data
+
+def line_data(z):
+    if z == 0:
+        return None
+
+    ord_data = data[z-1, 1:]
+        # print(ord_data)
+    new_data = data[z, 1:]
+        # print(new_data)
+    # 获取前十GDP数据的下标，argsort默认从小到大
+    top10_GDP_idx = np.argsort(new_data)[::-1][:10]
+    growth_rate = (new_data - ord_data) / ord_data * 100
+    growth_rate = np.round(growth_rate, 2)
+    growth_rate = growth_rate[top10_GDP_idx].tolist()
+    return growth_rate[::-1]
+
+#---------测试--------------
+# for y in range(0,data.shape[0]):
+#     y_data1 = line_data(y)
+#     x_data = bar_data(y)[0]
+#     y_data = bar_data(y)[1]
+#     print(y_data1)
+#     print(y_data)
+#     print(x_data)
+
+# 取年份列表
+year_list=data[:,0].tolist()
+print(year_list)
+# [1992, 1993, ....... 2020]

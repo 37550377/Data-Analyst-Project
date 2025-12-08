@@ -1,0 +1,106 @@
+"""
+项目名称：新疆对乌兹别克斯坦出口贸易可视化2025年（1月~10月）
+功能描述：将中国人民共和国海关总督，海关统计数据在线查询平台
+获得的中国各城市GPD图表数据，用pandas清洗，基于pyecharts实现数据可视化
+数据来源：中国人民共和国海关总督，海关统计数据在线查询平台
+"""
+import pandas as pd
+import numpy as np
+import re
+df  = pd.read_csv("D:/数据导出.csv", encoding="gbk",)
+print(df.head())
+# print(df.columns)
+# Index(['注册地编码', '注册地名称', '贸易伙伴编码', '贸易伙伴名称', '商品编码', '商品名称', '第一数量', '第一计量单位',
+#        '第二数量', '第二计量单位', '人民币'],
+# print(df.shape)
+
+# 将money列选出来转列表
+money_iloc=df.iloc[:,10].tolist()
+
+# 设置空列表存贮处理过的数据
+money_data = []
+for i in money_iloc:
+    i.strip()
+    cc = int(i.replace(',',''))
+    money_data.append(cc)
+# print(money_data)
+
+# 将数据转换成Series
+md = pd.Series(money_data)
+# 获得金额的top_10下标
+top_10_idx = md.argsort()[::-1][:10].tolist()
+# print(top_10_idx)
+
+# 获得金额top_10商品对应的数量
+top_10_num = df.iloc[:,6][top_10_idx].tolist()[::-1]
+
+# 获得金额top_10商品对应的商品名称
+top_10_name = df.iloc[:,5][top_10_idx].tolist()
+i=0
+for x in top_10_num:
+    if x>10:
+        c=x/1000
+    else:
+        c=x
+    top_10_num[i] = c
+    i+=1
+
+print(top_10_num)
+print(top_10_name)
+money_data.sort(reverse=True)
+top_10_money = money_data[:10][::-1]
+qt_money = sum(money_data[10:])
+# print(qt_money)
+# print(top_10_money)
+top_10_money.append(qt_money)
+m_data=[v/10000 for v in top_10_money]
+print(m_data)
+
+# 第3章的死动物', '其他苷类衍生物', '干绿豆', '甘草浸膏', '未精梳单纱(232.56~714.29分特)', '葡萄干', '坐标测量仪', '未梳动物粗毛']
+top_10_name[1] = '未精梳单纱(125~192.31分特)'
+top_10_name[2] = '未列名水生无脊椎动物产品'
+top_10_name[3] = '其他苷类衍生物'
+top_10_name[4] = '干绿豆'
+top_10_name[5] = '甘草浸膏'
+top_10_name[6] = '未精梳单纱(232.56~714.29分特)'
+top_10_name = top_10_name[::-1]
+top_10_name.append("其他商品")
+print(top_10_name)
+
+第二个文件进行可视化操作
+from pyecharts.charts import Bar,Grid
+from pyecharts.options import *
+from pyecharts.globals import ThemeType
+from 乌兹别克斯坦数据清洗 import *
+bar = Bar(init_opts=InitOpts(theme=ThemeType.CHALK,width="1080px",height="700px"))
+bar.add_xaxis(top_10_name)
+bar.extend_axis(yaxis=AxisOpts(name="数量(吨/个)",position="right"))
+bar.add_yaxis("数量(吨/个)",top_10_num ,
+              bar_width=25,
+              label_opts=LabelOpts(is_show=True,color="#FFFFFF",font_size=12,rotate=-25),
+              itemstyle_opts=ItemStyleOpts(color="#F59E0B"))
+bar.add_yaxis("人民币(万元)",m_data,
+              bar_width=25,
+              yaxis_index=1,
+              label_opts=LabelOpts(is_show=True,color="#FFFFFF",font_size=12,rotate=-25),
+              itemstyle_opts=ItemStyleOpts(color="#EF4444"))
+
+bar.set_global_opts(
+    xaxis_opts=AxisOpts(
+         axislabel_opts=LabelOpts(
+         # 取消间隔
+        interval=0,
+        # 改字体大小
+       font_size=16,
+       rotate=20,
+       is_show=True,
+    )),
+    title_opts=TitleOpts(
+        is_show=True,
+        title="新疆对乌兹别克斯坦出口贸易2025(1~10月)",
+        pos_left="center",
+        pos_bottom="90%",
+    ),
+    toolbox_opts=ToolboxOpts(is_show=True)
+)
+bar.render("新疆对乌兹别克斯坦出口贸易2025(1~10月)图.html")

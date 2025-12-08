@@ -1,0 +1,166 @@
+"""
+项目名称：新疆对乌兹别克斯坦出口贸易可视化2025年（1月~10月）
+功能描述：将中国人民共和国海关总督，海关统计数据在线查询平台
+获得的数据写入mysql，pycharm联接数据库，读取数据，用pandas清洗，numpy计算，基于pyecharts实现数据可视化
+数据来源：中国人民共和国海关总督，海关统计数据在线查询平台
+"""
+将原始数据用Dbeaver可视化写入表格
+再用pycharm读取
+from pymysql import Connect
+import pandas as pd
+import numpy as np
+conn = Connect(
+    host='localhost',
+    port=3306,
+    user='root',
+    password='123456',
+    autocommit=True
+)
+# print(conn.get_server_info())
+cursor = conn.cursor()
+# 使用库
+conn.select_db("xj_wzdata")
+# 用游标对象获取表
+cursor.execute("select * from newtable")
+# pd读取sql
+df = pd.read_sql("select * from newtable", conn)
+# print(df.head())
+conn.close()
+clear_data = df.copy()
+# print(df['商品名称'])
+# print(df['第一数量'])
+# print(df['人民币'])
+# print(clear_data.info)
+
+for v in range(clear_data.shape[0]):
+    aa = clear_data.loc[v,"商品名称"]
+    if len(aa)>7:
+        aa = aa[:2] + "..." + aa[-2:]
+    clear_data.loc[v,"商品名称"] = aa
+# print(clear_data["人民币"].dtype)
+# object
+
+# 原表人民币列数据不能支持转数字类型，用for循环清洗
+rmb_list = clear_data["人民币"].tolist()
+clear_rmb = []
+for i in rmb_list:
+    i.strip()
+    i = round(float(i.replace(",", "")),2)
+    clear_rmb.append(i)
+clear_rmb = pd.Series(clear_rmb)
+# print(clear_rmb)
+clear_data["人民币"] = clear_rmb
+
+# 异常值处理，测试原始数据可靠性
+# 用3σ原则
+# 先转numpy计算更快
+# mean_val = clear_data["人民币"].to_numpy().mean()
+# std_val = clear_data["人民币"].to_numpy().std(ddof=1)
+# lower = mean_val - 3*std_val
+# upper  = mean_val + 3*std_val
+# clear_data["人民币"][(clear_data["人民币"]<lower) | (clear_data["人民币"]>upper)] = np.nan
+# print(clear_data["人民币"].isnull)
+# 标记低值简易通关商品为异常值，但是业务需求其非异常值
+
+# 数据右偏用iqr筛选
+# 默认是1.5倍iqr，因为右偏扩大范围
+# q1 = clear_data["人民币"].quantile(0.25)
+# q3 = clear_data["人民币"].quantile(0.75)
+# iqr = q3 - q1
+# lower_bound = q1 - 1.5*iqr
+# upper_bound = q3 + 3*iqr
+# clear_data[(clear_data["人民币"]<lower_bound) | (clear_data["人民币"]>upper_bound)] = np.nan
+# print(clear_data["人民币"].isnull)
+
+# 将5~7月拆分成单月
+# 因6月乌兹别克斯坦有古尔邦节，业务流程需要时间，所以五月为多出口月
+clear_data["五月出口金额"]=clear_data["人民币"]*0.4
+clear_data["六月出口金额"]=clear_data["人民币"]*0.3
+clear_data["七月出口金额"]=clear_data["人民币"]*0.3
+# # print(clear_data.head())
+
+# 避免打印出现科学计数法
+np.set_printoptions(suppress=True)
+# 种子数为42
+np.random.seed(42)
+num = len(clear_data)
+def new_pd(month_data:str):
+    if month_data in ["四月出口金额","六月出口金额","九月出口金额","十一月出口金额"]:
+        n_day = 30
+    elif month_data == "二月出口金额":
+        n_day = 28
+    else:
+        n_day = 31
+    # 读取某月金额的数据，行为num，列为生成总和为1的正态分布*天数个，与每个商品的金额相乘
+    eyday = np.round(
+        (clear_data.loc[:,month_data].to_numpy().reshape(-1, 1) *
+         np.random.dirichlet(size=num, alpha=[1] * n_day)), 2)
+    date_index = [f"{month_data[:1]}月{i+1}日"for i in range(n_day)]
+    data_columns = clear_data["商品名称"].tolist()
+    new_data = pd.DataFrame(eyday.T, index=date_index, columns=data_columns)
+    return new_data
+# may_data = new_pd("五月出口金额")
+# print(may_data)
+
+第二个文件可视化
+from pyecharts.charts import Bar,Timeline
+from pyecharts.options import *
+from pyecharts.globals import ThemeType
+from 获取 import *
+def timeline(data):
+    timeline = Timeline(init_opts=InitOpts(width="1080px", height="720px", theme=ThemeType.ROMA))
+    for y in range(data.shape[0]):
+        bar = Bar()
+        # 获取横坐标和纵坐标数据
+        x_data = data.columns.tolist()
+        y_data = data.iloc[y].tolist()
+        bar.add_xaxis(x_data)
+        bar.add_yaxis("销售额(人民币)", y_data,label_opts=LabelOpts(is_show=False))
+        bar.set_global_opts(
+            # 解决x轴不能显示所有年份问题
+            xaxis_opts=AxisOpts(
+                axislabel_opts=LabelOpts(
+                    # 取消间隔
+                    interval=0,
+                    # 改字体大小
+                    font_size=10,
+                    rotate=45,
+                    is_show=True,
+                )),
+            # 标题及其位置设置
+            title_opts=TitleOpts(
+                title=f"{data.index.tolist()[y]}的销售额",
+                pos_left="center",
+                pos_bottom="90%"
+            ),
+            # 工具箱设置
+            toolbox_opts=ToolboxOpts(is_show=True),
+            legend_opts=LegendOpts(pos_left="35%", pos_right="center"),
+        )
+            # 加入timeline轴
+        timeline.add(bar, str(data.index.tolist()[y]))
+        timeline.add_schema(
+            # 间隔
+            play_interval=1000,
+            # 开启时间轴
+            is_timeline_show=True,
+            # 循环播放关闭
+            is_loop_play=False,
+            # 自动播放
+            is_auto_play=True,
+            # 解决timelin轴不能显示所有年份的问题
+            label_opts=LabelOpts(
+                interval=0,
+                font_size=10,
+                # 旋转角度
+                rotate=45
+            )
+        )
+    timeline.render(f"{data.index.tolist()[0][:2]}销售额可视化.html")
+
+通过两个函数封装，直接写行就能生成正态分布到每日的数据
+
+timeline(new_pd("五月出口金额"))
+timeline(new_pd("六月出口金额"))
+timeline(new_pd("七月出口金额"))
+
